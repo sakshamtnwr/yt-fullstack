@@ -1,4 +1,5 @@
 //require('dotenv').config({path : "./env"})
+import { app } from "./app.js";
 import dotenv from "dotenv";
 import connectDB from "./db/index.js";
 
@@ -15,7 +16,7 @@ connectDB()
         throw error;
     })
     app.listen(portt, ()=>{
-        console.log(`server is running at port : ${prott}`);
+        console.log(`server is running at port : ${portt}`);
         
     })
 })
