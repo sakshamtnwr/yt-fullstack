@@ -35,7 +35,7 @@ const registerUser = asynchandler( async(req,res) => {
 
     //User.findOne({username})
     //User.findOne({email})
-    const existedUser = User.findOne({
+    const existedUser = await User.findOne({
         $or: [{ username }, { email }]
     })
 
@@ -43,8 +43,14 @@ const registerUser = asynchandler( async(req,res) => {
         throw new ApiError(409, "User with username or email already exists")
     }
 
+    //console.log(req.files)
+
     const avatarLocalPath = req.files?.avatar[0]?.path; 
-    const coverImageLocalPath = req.files?.coverImage[0]?.path; 
+    // const coverImageLocalPath = req.files?.coverImage[0]?.path; TypeError: Cannot read properties of undefined
+    let coverImageLocalPath; //CLASSIC WAY TO WRITE THE SAME THING AS ABOVE
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length>0) {
+        coverImageLocalPath = req.files.coverImage[0].path
+    }
 
     if (!avatarLocalPath) {
         throw new ApiError(400,"Avatar file is required")
@@ -53,7 +59,7 @@ const registerUser = asynchandler( async(req,res) => {
     const avatar = await uploadOnCloudinary(avatarLocalPath)
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
 
-    if (avatar) {
+    if (!avatar) {
         throw new ApiError(400,"Avatar file is required")
     }
 
@@ -63,7 +69,7 @@ const registerUser = asynchandler( async(req,res) => {
         coverImage : coverImage?.url || "",
         email,
         password,
-        username : username.toLowercase
+        username : username.toLowerCase()
     })                                                                       
 
     const createduser = await User.findById(user._id).select(
