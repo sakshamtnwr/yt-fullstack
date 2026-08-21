@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { User } from "../models/user.model.js"
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
+import jwt from "jsonwebtoken";
 
 
 const generateAccessAndRefreshTokens =  async(userId) => {
@@ -117,7 +118,6 @@ const loginUser = asynchandler( async(req,res) => {
     // send cookie
 
     const {email, username, password} = req.body 
-    console.log("email", email);
 
     // if (!(username || email)) {  alternative way to write the same thing as below
     //     throw new ApiError(400, "username or password is required")
@@ -196,9 +196,83 @@ const logoutUser = asynchandler( async(req,res) => {
 
 })
 
+const refreshAccessToken = asynchandler( async(req,res) => {
+    const incomingrefreshToken = req.cookies?.refreshToken || req.header("Authorization")?.replace("Bearer ", "") || req.body?.refreshToken //why body? because some uses mobile and can be sent to us in body
 
+    if (!incomingrefreshToken) {
+        throw new ApiError(401, "unauthorized request")
+    }
+
+    try {
+        const decodedToken = jwt.verify(incomingrefreshToken, process.env.REFRESH_TOKEN_SECRET)
+    
+        const user = await User.findById(decodedToken?._id)
+    
+        if (!user) {
+            throw new ApiError(401, "Invalid refresh token")
+        }
+    
+        if (user?.refreshToken !== incomingrefreshToken) {
+            throw new ApiError(401, "Refresh Token is expired or invalid")
+        }
+    
+        const {accessToken, newRefreshToken} = await user.generateAccessTokenAndRefreshToken(user._id)
+    
+        const options = {
+            httpOnly: true,
+            secure: true
+        }
+    
+        return res
+        .status(200)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", newRefreshToken, options)
+        .json(
+            new ApiResponse(
+                200,
+                {
+                    accessToken,
+                    refreshToken: newRefreshToken
+                },
+                "Access token refreshed successfully"
+            )
+        )
+    } catch (error) {
+        throw new ApiError(401, "Error while refreshing access token: " + error?.message)
+    }
+
+    //made by copilot by autosuggestion so damn cool but we will use our style too in between
+    // User.findById(decodedToken?._id).select("-password -refreshToken").then((user) => {
+    //     if (!user) {
+    //         throw new ApiError(401, "Invalid refresh token")
+    //     }
+
+    //     if (user.refreshToken !== incomingrefreshToken) {
+    //         throw new ApiError(401, "Invalid refresh token")
+    //     }
+
+    //     const accessToken = user.generateAccessToken()
+
+    //     const options = {
+    //         httpOnly: true,
+    //         secure: true
+    //     }
+
+    //     return res
+    //     .status(200)
+    //     .cookie("accessToken", accessToken, options)
+    //     .json(
+    //         new ApiResponse(
+    //             200,
+    //             {
+    //                 user, accessToken
+    //             },
+    //             "Access token generated successfully"
+    //         )
+    //     )   
+})
 
 
 export {
-    registerUser, loginUser, logoutUser
+    registerUser, loginUser, logoutUser, refreshAccessToken
 }
