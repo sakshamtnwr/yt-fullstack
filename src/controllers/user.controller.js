@@ -272,7 +272,120 @@ const refreshAccessToken = asynchandler( async(req,res) => {
     //     )   
 })
 
+const changeCurrentPassword = asynchandler( async(req,res) => {
+    const {currentPassword, newPassword} = req.body
+
+    const user = await User.findById(req.user?._id)
+
+    const isPasswordCorrect = await user.isPasswordCorrect(currentPassword)
+
+    if (!isPasswordCorrect) {
+        throw new ApiError(400, "Current password is incorrect")
+    }
+
+    user.password = newPassword
+    await user.save({ validateBeforeSave: false })
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, null, "Password changed successfully"))
+})
+
+const getCurrentUser = asynchandler( async(req,res) => {
+    const user = await User.findById(req.user?._id).select("-password -refreshToken")
+
+    if (!user) {
+        throw new ApiError(404, "User not found")
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user, "Current user retrieved successfully"))
+})
+
+const updateAccountDetails = asynchandler( async(req,res) => {
+    const { fullName, email } = req.body
+
+    if (!(fullName) || !(email)) {
+        throw new ApiError(400, "Full name and email are required")
+    }
+
+    const user = await User.findByIdAndUpdate(req.user?._id, {
+        $set:{ 
+            fullName, 
+            email 
+        }
+    }, { new: true }).select("-password -refreshToken")
+
+    if (!user) {
+        throw new ApiError(404, "User not found")
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user, "Account details updated successfully"))
+})  
+
+const updateUserAvatar = asynchandler( async(req,res) => {
+    const avatarLocalPath = req.file?.path; //req.file and req.files are different and we used here req.file instead of req.files because we are using single file upload for avatar and cover image in multer middleware and for single file upload we use req.file and for multiple file upload we use req.files, both the req.files and req.file are provided by multer middleware and we can access the uploaded file's path using req.file.path or req.files.path depending on whether we are using single or multiple file upload in multer middleware
+
+
+    // const avatarLocalPath = req.files?.avatar[0]?.path; //why avatar[0]? because we have set maxCount: 1 in multer middleware so it will be an array of one element and we need to access that element
+
+    if (!avatarLocalPath) {
+        throw new ApiError(400,"Avatar file is required")
+    }
+
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
+
+    if (!avatar) {
+        throw new ApiError(400,"Avatar file is required")
+    }
+
+    const user = await User.findByIdAndUpdate(req.user?._id, {
+        $set:{
+            avatar : avatar.url
+        }
+    }, { new: true }).select("-password -refreshToken")
+
+    if (!user) {
+        throw new ApiError(404, "User not found")
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user, "User avatar updated successfully"))
+})
+
+const updateUserCoverImage = asynchandler( async(req,res) => {
+    const CoverImageLocalPath = req.file?.path;
+
+    if (!CoverImageLocalPath) {
+        throw new ApiError(400,"Cover image file is required")
+    }
+
+    const CoverImage = await uploadOnCloudinary(CoverImageLocalPath)
+
+    if (!CoverImage) {
+        throw new ApiError(400,"Cover image file is required")
+    }
+
+    const user = await User.findByIdAndUpdate(req.user?._id, {
+        $set:{
+            coverImage : CoverImage.url
+        }
+    }, { new: true }).select("-password -refreshToken")
+
+    if (!user) {
+        throw new ApiError(404, "User not found")
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user, "User cover image updated successfully"))
+})
+
 
 export {
-    registerUser, loginUser, logoutUser, refreshAccessToken
+    registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage
 }
