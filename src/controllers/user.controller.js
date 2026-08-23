@@ -511,6 +511,7 @@ const getUserWatchHistory = asynchandler( async(req,res) => {
                     {
                         $addFields: {
                             $first: "$owner"
+                        }
                     }
                 ]
             }
