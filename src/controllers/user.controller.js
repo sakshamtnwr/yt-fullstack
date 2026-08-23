@@ -342,6 +342,8 @@ const updateUserAvatar = asynchandler( async(req,res) => {
         throw new ApiError(400,"Avatar file is required")
     }
 
+    const oldAvatarUrl = req.user?.avatar;
+
     const user = await User.findByIdAndUpdate(req.user?._id, {
         $set:{
             avatar : avatar.url
@@ -351,6 +353,18 @@ const updateUserAvatar = asynchandler( async(req,res) => {
     if (!user) {
         throw new ApiError(404, "User not found")
     }
+
+
+    // MongoDB update succeeded → now delete old image
+    if (oldAvatarUrl) {
+        const oldAvatarPublicId = oldAvatarUrl
+            .split("/")
+            .pop()
+            .split(".")[0];
+
+        await cloudinary.uploader.destroy(oldAvatarPublicId);
+    }
+
 
     return res
         .status(200)
@@ -369,6 +383,7 @@ const updateUserCoverImage = asynchandler( async(req,res) => {
     if (!CoverImage) {
         throw new ApiError(400,"Cover image file is required")
     }
+    const oldCoverImageUrl = req.user?.coverImage;
 
     const user = await User.findByIdAndUpdate(req.user?._id, {
         $set:{
@@ -380,12 +395,88 @@ const updateUserCoverImage = asynchandler( async(req,res) => {
         throw new ApiError(404, "User not found")
     }
 
+
+    if (oldCoverImageUrl) {
+        const oldCoverImagePublicId = oldCoverImageUrl
+            .split("/")
+            .pop()
+            .split(".")[0];
+
+        await cloudinary.uploader.destroy(oldCoverImagePublicId);
+    }
+
     return res
         .status(200)
         .json(new ApiResponse(200, user, "User cover image updated successfully"))
 })
 
+const getUserChannelProfile = asynchandler( async(req,res) => {
+    const { username } = req.params
+
+    if (!username?.trim()) {
+        throw new ApiError(400, "Username is missing in request params")
+    }
+
+    const channel = await User.aggregate([
+        {
+            $match: {
+                username: username.toLowerCase()
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+            }
+        },
+        {
+            $addFields: {
+                subscribersCount: { $size: "$subscribers" },
+                subscribedToCount: { $size: "$subscribedTo" },
+                isSubscribed: {
+                    $cond: {
+                        if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                fullName: 1,
+                username: 1,
+                email: 1,
+                avatar: 1,
+                coverImage: 1,
+                subscribersCount: 1,
+                subscribedToCount: 1,
+                isSubscribed: 1
+            }
+        }
+    ])
+
+    //what datatype does aggregate return and console.log(channel) to check the datatype and it returns an array of objects and we need to check if the array is empty or not to check if the channel exists or not and if it exists then we need to return the first object of the array because we are matching the username which is unique and will return only one object in the array
+
+    if (!channel?.length) {
+        throw new ApiError(404, "Channel not found")
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, channel[0], "Channel profile fetched successfully"))
+})
 
 export {
-    registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage
+    registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverImage, getUserChannelProfile
 }
