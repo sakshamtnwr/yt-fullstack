@@ -510,22 +510,22 @@ const getUserWatchHistory = asynchandler( async(req,res) => {
                     },
                     {
                         $addFields: {
-                            $first: "$owner"
+                            owner: { $first: "$owner" }
                         }
                     }
                 ]
             }
         }
-    ])
-
+    ]) // if i have to write the above aggregate code using populate then code will be this:
     // const user = await User.findById(req.user?._id)
     //     .populate({
-    //         path: "watchHistory",
-    //         populate: {
-    //             path: "video",
-    //             select: "title description thumbnail"
-    //         }
-    //     })
+    //          path: "watchHistory",
+    //          populate: {
+    //              path: "owner",
+    //              select: "fullName username avatar"
+    //          }
+    //     }) will this give the same result as above aggregate code? yes it will give the same result as above aggregate code but the above aggregate code is more efficient and optimized because it uses $lookup and $addFields to get the owner details in a single query instead of making multiple queries using populate which can be slow and inefficient for large datasets.
+
 
     return res
         .status(200)
