@@ -11,6 +11,9 @@ const getAllVideos = asynchandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy = "views" , sortType = -1 , userId } = req.query
     //TODO: get all videos based on query, sort, pagination
 
+    const pageNumber = Number(page)
+    const limitNumber = Number(limit)
+    
     const video = await Video.aggregate([
         {
             $match: {
@@ -27,10 +30,10 @@ const getAllVideos = asynchandler(async (req, res) => {
             }
         },
         {
-            $skip: (page - 1) * limit
+            $skip: (pageNumber - 1) * limitNumber
         },
         {
-            $limit: limit
+            $limit: limitNumber
         }
     ])
 
@@ -229,6 +232,7 @@ const togglePublishStatus = asynchandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, updatedVideo, "Publish status toggled successfully"));
 })
+
 
 export {
     getAllVideos,
