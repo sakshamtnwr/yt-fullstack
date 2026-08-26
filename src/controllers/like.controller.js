@@ -128,19 +128,19 @@ const getLikedVideos = asynchandler(async (req, res) => {
             $unwind: '$videoDetails'
         },
         {
-            $project: {
-                _id: 0,
-                videoDetails: 1
-            }
-        },
-        {
             $skip: (pageNumber - 1) * limitNumber
         },
         {
             $limit : limitNumber
+        },
+        {
+            $project: {
+                _id: 0,
+                videoDetails: 1
+            }
         }
     ])
-
+    
     return res.status(200).json(new ApiResponse(200, likedVideos, "Liked videos retrieved successfully"))
 })
 
