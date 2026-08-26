@@ -2,41 +2,41 @@ import mongoose, {isValidObjectId} from "mongoose"
 import {Playlist} from "../models/playlist.model.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
-import {asyncHandler} from "../utils/asyncHandler.js"
+import {asynchandler} from "../utils/asynchandler.js"
 
 
-const createPlaylist = asyncHandler(async (req, res) => {
+const createPlaylist = asynchandler(async (req, res) => {
     const {name, description} = req.body
 
     //TODO: create playlist
 })
 
-const getUserPlaylists = asyncHandler(async (req, res) => {
+const getUserPlaylists = asynchandler(async (req, res) => {
     const {userId} = req.params
     //TODO: get user playlists
 })
 
-const getPlaylistById = asyncHandler(async (req, res) => {
+const getPlaylistById = asynchandler(async (req, res) => {
     const {playlistId} = req.params
     //TODO: get playlist by id
 })
 
-const addVideoToPlaylist = asyncHandler(async (req, res) => {
+const addVideoToPlaylist = asynchandler(async (req, res) => {
     const {playlistId, videoId} = req.params
 })
 
-const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
+const removeVideoFromPlaylist = asynchandler(async (req, res) => {
     const {playlistId, videoId} = req.params
     // TODO: remove video from playlist
 
 })
 
-const deletePlaylist = asyncHandler(async (req, res) => {
+const deletePlaylist = asynchandler(async (req, res) => {
     const {playlistId} = req.params
     // TODO: delete playlist
 })
 
-const updatePlaylist = asyncHandler(async (req, res) => {
+const updatePlaylist = asynchandler(async (req, res) => {
     const {playlistId} = req.params
     const {name, description} = req.body
     //TODO: update playlist

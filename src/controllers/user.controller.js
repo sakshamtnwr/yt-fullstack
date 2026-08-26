@@ -326,7 +326,7 @@ const updateAccountDetails = asynchandler( async(req,res) => {
         .json(new ApiResponse(200, user, "Account details updated successfully"))
 })  
 
-const updateUserAvatar = asynchandler( async(req,res) => {
+const updateUserAvatar = asynchandler( async(req,res) => {  
     const avatarLocalPath = req.file?.path; //req.file and req.files are different and we used here req.file instead of req.files because we are using single file upload for avatar and cover image in multer middleware and for single file upload we use req.file and for multiple file upload we use req.files, both the req.files and req.file are provided by multer middleware and we can access the uploaded file's path using req.file.path or req.files.path depending on whether we are using single or multiple file upload in multer middleware
 
 
@@ -362,7 +362,9 @@ const updateUserAvatar = asynchandler( async(req,res) => {
             .pop()
             .split(".")[0];
 
-        await cloudinary.uploader.destroy(oldAvatarPublicId);
+        await cloudinary.uploader.destroy(oldAvatarPublicId, {
+            resource_type: "image"
+        });
     }
 
 
@@ -402,7 +404,9 @@ const updateUserCoverImage = asynchandler( async(req,res) => {
             .pop()
             .split(".")[0];
 
-        await cloudinary.uploader.destroy(oldCoverImagePublicId);
+        await cloudinary.uploader.destroy(oldCoverImagePublicId, {
+            resource_type: "image"
+        });
     }
 
     return res
