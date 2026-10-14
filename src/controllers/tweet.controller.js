@@ -26,6 +26,104 @@ const createTweet = asynchandler(async (req, res) => {
     )
 })
 
+const getAllTweets = asynchandler(async (req, res) => {
+    const {
+        page = 1,
+        limit = 10,
+        query = "",
+        sortBy = "createdAt",
+        sortType = "desc"
+    } = req.query;
+
+    const pageNumber = Number(page);
+    const limitNumber = Number(limit);
+    const searchTerm = query.trim();
+
+    let matchStage = {};
+
+    if (searchTerm) {
+        // Check whether the search term is a username
+        const username = searchTerm.startsWith("@")
+            ? searchTerm.slice(1)
+            : searchTerm;
+
+        const escapedUsername = username.replace(
+            /[.*+?^${}()|[\]\\]/g,
+            "\\$&"
+        );
+
+        const matchingUser = await User.findOne({
+            username: {
+                $regex: `^${escapedUsername}$`,
+                $options: "i"
+            }
+        }).select("_id");
+
+        if (matchingUser) {
+            // Username found: fetch that user's tweets
+            matchStage.owner = matchingUser._id;
+        } else {
+            // No username found: search tweet content
+            const escapedQuery = searchTerm.replace(
+                /[.*+?^${}()|[\]\\]/g,
+                "\\$&"
+            );
+
+            matchStage.content = {
+                $regex: escapedQuery,
+                $options: "i"
+            };
+        }
+    }
+
+    const tweets = await Tweet.aggregate([
+        {
+            $match: matchStage
+        },
+        {
+            $sort: {
+                [sortBy]: sortType === "asc" ? 1 : -1
+            }
+        },
+        {
+            $skip: (pageNumber - 1) * limitNumber
+        },
+        {
+            $limit: limitNumber
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [
+                    {
+                        $project: {
+                            username: 1,
+                            fullName: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields: {
+                owner: { $first: "$owner" }
+            }
+        }
+    ]);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            tweets,
+            "Tweets fetched successfully"
+        )
+    );
+});
+
 const getUserTweets = asynchandler(async (req, res) => {
     // TODO: get user tweets
 
@@ -127,9 +225,12 @@ const deleteTweet = asynchandler(async (req, res) => {
     )
 })
 
+
+
 export {
     createTweet,
+    getAllTweets,
     getUserTweets,
     updateTweet,
-    deleteTweet
+    deleteTweet,
 }

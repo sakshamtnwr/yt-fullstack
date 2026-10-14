@@ -22,7 +22,7 @@ const createPlaylist = asynchandler(async (req, res) => {
 const getUserPlaylists = asynchandler(async (req, res) => {
     //TODO: get user playlists
     const { userId } = req.params
-    const loggedInUserId = req.user?._id
+    const loggedInUserId = req.user?._id.toString()
 
     if (userId !== loggedInUserId) {
         throw new ApiError(401, "You are not authorized to get user playlists")
@@ -164,7 +164,7 @@ const deletePlaylist = asynchandler(async (req, res) => {
     if (!playlist) {
         throw new ApiError(404, "Playlist not found")
     }
-    if (playlist.owner !== req.user?._id) {
+    if (playlist.owner.toString() !== req.user?._id.toString()) {
         throw new ApiError(401, "You are not authorized to delete this playlist")
     }
 

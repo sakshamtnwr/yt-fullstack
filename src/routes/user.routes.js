@@ -12,12 +12,12 @@ router.route("/register").post(
         //fields because different and multiple like array
         //single means single file upload and etc...
         {
-            name : "avatar",
-            maxCount : 1
+            name: "avatar",
+            maxCount: 1
         },
         {
-            name : "coverImage",
-            maxCount : 1 
+            name: "coverImage",
+            maxCount: 1
         }
     ]),
     registerUser
