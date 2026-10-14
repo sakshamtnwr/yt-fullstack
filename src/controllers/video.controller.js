@@ -7,39 +7,6 @@ import {asynchandler} from "../utils/asynchandler.js"
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
 import {v2 as cloudinary} from "cloudinary"
 
-const getAllVideos = asynchandler(async (req, res) => {
-    const { page = 1, limit = 10, query, sortBy = "views" , sortType = -1 , userId } = req.query
-    //TODO: get all videos based on query, sort, pagination
-
-    const pageNumber = Number(page)
-    const limitNumber = Number(limit)
-    
-    const video = await Video.aggregate([
-        {
-            $match: {
-                isPublished: true,
-                $or: [
-                    { title: { $regex: query, $options: "i" } },
-                    { description: { $regex: query, $options: "i" } }
-                ]
-            }
-        },
-        {
-            $sort: {
-                [sortBy]: sortType === "asc" ? 1 : -1
-            }
-        },
-        {
-            $skip: (pageNumber - 1) * limitNumber
-        },
-        {
-            $limit: limitNumber
-        }
-    ])
-
-    return res.status(200).json(new ApiResponse(200, video, "Videos fetched successfully"))
-})
-
 
 const publishAVideo = asynchandler(async (req, res) => {
     // TODO: get video, upload to cloudinary, create video
@@ -232,6 +199,94 @@ const togglePublishStatus = asynchandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, updatedVideo, "Publish status toggled successfully"));
 })
+
+const getAllVideos = asynchandler(async (req, res) => {
+    const {
+        page = 1,
+        limit = 10,
+        query = "",
+        sortBy = "views",
+        sortType = "desc"
+    } = req.query;
+
+    const pageNumber = Number(page);
+    const limitNumber = Number(limit);
+    const searchTerm = query.trim();
+
+    const matchStage = {
+        isPublished: true
+    };
+
+    if (searchTerm) {
+        // Check whether the search term matches a username
+        const username = searchTerm.startsWith("@")
+            ? searchTerm.slice(1)
+            : searchTerm;
+
+        const escapedUsername = username.replace(
+            /[.*+?^${}()|[\]\\]/g,
+            "\\$&"
+        );
+
+        const matchingUser = await User.findOne({
+            username: {
+                $regex: `^${escapedUsername}$`,
+                $options: "i"
+            }
+        }).select("_id");
+
+        if (matchingUser) {
+            // Username found: fetch this user's published videos
+            matchStage.owner = matchingUser._id;
+        } else {
+            // No username found: search video title and description
+            const escapedQuery = searchTerm.replace(
+                /[.*+?^${}()|[\]\\]/g,
+                "\\$&"
+            );
+
+            matchStage.$or = [
+                {
+                    title: {
+                        $regex: escapedQuery,
+                        $options: "i"
+                    }
+                },
+                {
+                    description: {
+                        $regex: escapedQuery,
+                        $options: "i"
+                    }
+                }
+            ];
+        }
+    }
+
+    const videos = await Video.aggregate([
+        {
+            $match: matchStage
+        },
+        {
+            $sort: {
+                [sortBy]: sortType === "asc" ? 1 : -1
+            }
+        },
+        {
+            $skip: (pageNumber - 1) * limitNumber
+        },
+        {
+            $limit: limitNumber
+        }
+    ]);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            videos,
+            "Videos fetched successfully"
+        )
+    );
+});
 
 
 export {
