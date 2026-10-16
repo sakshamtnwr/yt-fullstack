@@ -228,16 +228,30 @@ const getAllVideos = asynchandler(async (req, res) => {
             "\\$&"
         );
 
-        const matchingUser = await User.findOne({
+        const usernameMatch = {
             username: {
                 $regex: `^${escapedUsername}$`,
                 $options: "i"
             }
-        }).select("_id");
+        };
+        const userLookup = searchTerm.startsWith("@")
+            ? usernameMatch
+            : {
+                $or: [
+                    usernameMatch,
+                    {
+                        fullName: {
+                            $regex: `^${escapedUsername}$`,
+                            $options: "i"
+                        }
+                    }
+                ]
+            };
+        const matchingUsers = await User.find(userLookup).select("_id");
 
-        if (matchingUser) {
-            // Username found: fetch this user's published videos
-            matchStage.owner = matchingUser._id;
+        if (matchingUsers.length > 0) {
+            // Exact username or full-name match: return videos from those creators.
+            matchStage.owner = { $in: matchingUsers.map((matchedUser) => matchedUser._id) };
         } else {
             // No username found: search video title and description
             const escapedQuery = searchTerm.replace(
@@ -276,6 +290,29 @@ const getAllVideos = asynchandler(async (req, res) => {
         },
         {
             $limit: limitNumber
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "ownerDetails",
+                pipeline: [
+                    {
+                        $project: {
+                            _id: 1,
+                            username: 1,
+                            fullName: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields: {
+                ownerDetails: { $first: "$ownerDetails" }
+            }
         }
     ]);
 
